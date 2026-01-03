@@ -167,12 +167,22 @@ lender-matching-full/
 
 ### Backend Environment Variables
 
+Create a `.env` file in the `backend/` directory or use the settings in `docker-compose.yml`.
+
 ```env
-DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/lender_matching
-GOOGLE_API_KEY=your_gemini_api_key_here
+# Database Configuration
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=lender_db
+DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/lender_db
+
+# External APIs
+GOOGLE_API_KEY=<GEMINI_API_KEY>
 ```
 
 ### Frontend Environment Variables
+
+Create a `.env` file in the `frontend/` directory (or use `.env.local` for local dev).
 
 ```env
 VITE_API_URL=http://localhost:8000
@@ -185,7 +195,7 @@ VITE_API_URL=http://localhost:8000
 docker-compose up --build
 
 # The application will be available at:
-# - Frontend: http://localhost:3000
+# - Frontend: http://localhost:80
 # - Backend: http://localhost:8000
 ```
 
@@ -250,12 +260,3 @@ For production deployment, consider:
 4. **File Storage** - Use S3 instead of local disk for PDFs
 5. **Monitoring** - Add Prometheus metrics and health checks
 6. **Rate Limiting** - Protect API endpoints from abuse
-7. **Testing** - Add unit tests, integration tests, and E2E tests
-
-## 📄 License
-
-MIT
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
