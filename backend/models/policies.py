@@ -31,7 +31,7 @@ class Policy(Base):
         ForeignKey("lenders.id", ondelete="CASCADE"),
         nullable=False
     )
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
     min_fit_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, 

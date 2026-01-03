@@ -4,6 +4,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+    Box, Container, Grid, Flex, Heading, Text, Button,
+    Spinner, Card, VStack, IconButton, Badge
+} from '@chakra-ui/react';
+import { FaTimes } from 'react-icons/fa';
 import { MatchCard } from '../components/MatchCard';
 import { ReasoningList } from '../components/ReasoningList';
 import api from '../services/api';
@@ -55,40 +60,40 @@ export const MatchingResults: React.FC = () => {
 
     if (loading || application?.status === 'processing') {
         return (
-            <div className="container">
-                <div className="loading-state">
-                    <div className="spinner"></div>
-                    <h2>Matching Lenders...</h2>
-                    <p>This may take a few seconds</p>
-                </div>
-            </div>
+            <Flex justify="center" align="center" h="100vh" direction="column" gap={4}>
+                <Spinner size="xl" color="blue.solid" />
+                <Heading size="lg">Matching Lenders...</Heading>
+                <Text color="fg.muted">This may take a few seconds</Text>
+            </Flex>
         );
     }
 
     if (error) {
         return (
-            <div className="container">
-                <div className="error-state">
-                    <h2>Error Loading Results</h2>
-                    <p>{error}</p>
-                    <button onClick={() => navigate('/')} className="button">
-                        Back to Home
-                    </button>
-                </div>
-            </div>
+            <Container maxW="container.md" py={10}>
+                <Card.Root borderColor="red.solid" borderLeftWidth={4}>
+                    <Card.Body>
+                        <Heading size="md" color="red.fg" mb={2}>Error Loading Results</Heading>
+                        <Text mb={4}>{error}</Text>
+                        <Button onClick={() => navigate('/')} variant="outline">
+                            Back to Home
+                        </Button>
+                    </Card.Body>
+                </Card.Root>
+            </Container>
         );
     }
 
     if (!application) {
         return (
-            <div className="container">
-                <div className="error-state">
-                    <h2>Application Not Found</h2>
-                    <button onClick={() => navigate('/')} className="button">
-                        Back to Home
-                    </button>
-                </div>
-            </div>
+            <Container maxW="container.md" py={10}>
+                <Card.Root>
+                    <Card.Body>
+                        <Heading size="md" mb={4}>Application Not Found</Heading>
+                        <Button onClick={() => navigate('/')}>Back to Home</Button>
+                    </Card.Body>
+                </Card.Root>
+            </Container>
         );
     }
 
@@ -96,34 +101,48 @@ export const MatchingResults: React.FC = () => {
     const ineligibleMatches = matches.filter(m => !m.eligible);
 
     return (
-        <div className="container">
-            <div className="results-header">
-                <h1>Matching Results</h1>
-                <div className="applicant-info">
-                    <h2>{application.applicant_name}</h2>
-                    <p className="submitted-date">
-                        Submitted: {new Date(application.created_at).toLocaleDateString()}
-                    </p>
-                </div>
-            </div>
+        <Container maxW="full" p={5}>
+            <Flex justify="space-between" align="center" mb={6} wrap="wrap" gap={4}>
+                <Box>
+                    <Heading size="xl" mb={1}>Matching Results</Heading>
+                    <Box>
+                        <Text as="span" fontWeight="bold" fontSize="lg">{application.applicant_name}</Text>
+                        <Text as="span" color="fg.muted" ml={2}>
+                            Submitted: {new Date(application.created_at).toLocaleDateString()}
+                        </Text>
+                    </Box>
+                </Box>
+                <Button onClick={() => navigate('/')} variant="outline">
+                    Submit Another Application
+                </Button>
+            </Flex>
 
-            <div className="results-summary">
-                <div className="summary-card">
-                    <div className="summary-number">{eligibleMatches.length}</div>
-                    <div className="summary-label">Approved Lenders</div>
-                </div>
-                <div className="summary-card">
-                    <div className="summary-number">{matches.length}</div>
-                    <div className="summary-label">Total Evaluated</div>
-                </div>
-            </div>
+            {/* Summary Cards */}
+            <Grid templateColumns={{ base: "1fr", sm: "1fr 1fr" }} gap={4} mb={8} maxW="container.sm">
+                <Card.Root bg="bg.panel" variant="elevated">
+                    <Card.Body textAlign="center">
+                        <Text fontSize="4xl" fontWeight="bold" color="green.solid">{eligibleMatches.length}</Text>
+                        <Text color="fg.muted">Approved Lenders</Text>
+                    </Card.Body>
+                </Card.Root>
+                <Card.Root bg="bg.panel" variant="elevated">
+                    <Card.Body textAlign="center">
+                        <Text fontSize="4xl" fontWeight="bold" color="blue.solid">{matches.length}</Text>
+                        <Text color="fg.muted">Total Evaluated</Text>
+                    </Card.Body>
+                </Card.Root>
+            </Grid>
 
-            <div className="results-layout">
-                <div className="matches-column">
+            {/* Main Layout */}
+            <Grid templateColumns={{ base: "1fr", lg: selectedMatch ? "1fr 400px" : "1fr" }} gap={6} alignItems="start">
+
+                {/* Matches Column */}
+                <VStack gap={8} align="stretch" w="full">
+
                     {eligibleMatches.length > 0 && (
-                        <div className="matches-section">
-                            <h3 className="section-title approved">✓ Approved Lenders</h3>
-                            <div className="matches-grid">
+                        <Box>
+                            <Heading size="lg" color="green.solid" mb={4}>✓ Approved Lenders</Heading>
+                            <Grid templateColumns={{ base: "1fr", md: "repeat(auto-fill, minmax(300px, 1fr))" }} gap={4}>
                                 {eligibleMatches.map((match) => (
                                     <MatchCard
                                         key={match.id}
@@ -131,14 +150,14 @@ export const MatchingResults: React.FC = () => {
                                         onClick={() => setSelectedMatch(match)}
                                     />
                                 ))}
-                            </div>
-                        </div>
+                            </Grid>
+                        </Box>
                     )}
 
                     {ineligibleMatches.length > 0 && (
-                        <div className="matches-section">
-                            <h3 className="section-title declined">✗ Declined Lenders</h3>
-                            <div className="matches-grid">
+                        <Box>
+                            <Heading size="lg" color="red.solid" mb={4}>✗ Declined Lenders</Heading>
+                            <Grid templateColumns={{ base: "1fr", md: "repeat(auto-fill, minmax(300px, 1fr))" }} gap={4}>
                                 {ineligibleMatches.map((match) => (
                                     <MatchCard
                                         key={match.id}
@@ -146,48 +165,63 @@ export const MatchingResults: React.FC = () => {
                                         onClick={() => setSelectedMatch(match)}
                                     />
                                 ))}
-                            </div>
-                        </div>
+                            </Grid>
+                        </Box>
                     )}
 
                     {matches.length === 0 && (
-                        <div className="no-matches">
-                            <p>No lenders evaluated yet. Please check back later.</p>
-                        </div>
+                        <Card.Root>
+                            <Card.Body>
+                                <Text textAlign="center" color="fg.muted">No lenders evaluated yet. Please check back later.</Text>
+                            </Card.Body>
+                        </Card.Root>
                     )}
-                </div>
+                </VStack>
 
+                {/* Details Panel */}
                 {selectedMatch && (
-                    <div className="details-panel">
-                        <div className="panel-header">
-                            <h3>{selectedMatch.lender_name}</h3>
-                            <button
-                                onClick={() => setSelectedMatch(null)}
-                                className="close-button"
-                                aria-label="Close"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div className="panel-content">
-                            <h4>{selectedMatch.program_name}</h4>
-                            <div className={`status-large ${selectedMatch.eligible ? 'approved' : 'declined'}`}>
-                                {selectedMatch.eligible ? 'Approved' : 'Declined'}
-                            </div>
-                            <div className="fit-score-large">
-                                Fit Score: {selectedMatch.fit_score}%
-                            </div>
-                            <ReasoningList evaluations={selectedMatch.evaluations} />
-                        </div>
-                    </div>
-                )}
-            </div>
+                    <Card.Root
+                        position={{ lg: "sticky" }}
+                        top={{ lg: "20px" }}
+                        h={{ lg: "calc(100vh - 40px)" }}
+                        overflowY="auto"
+                        shadow="lg"
+                        borderLeftWidth={4}
+                        borderLeftColor={selectedMatch.eligible ? "green.solid" : "red.solid"}
+                    >
+                        <Card.Body>
+                            <Flex justify="space-between" align="start" mb={4}>
+                                <Box>
+                                    <Heading size="md">{selectedMatch.lender_name}</Heading>
+                                    <Text color="fg.muted" fontSize="sm">{selectedMatch.program_name}</Text>
+                                </Box>
+                                <IconButton
+                                    aria-label="Close"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setSelectedMatch(null)}
+                                >
+                                    <FaTimes />
+                                </IconButton>
+                            </Flex>
 
-            <div className="actions">
-                <button onClick={() => navigate('/')} className="button secondary">
-                    Submit Another Application
-                </button>
-            </div>
-        </div>
+                            <Flex gap={2} mb={6}>
+                                <Badge size="lg" colorPalette={selectedMatch.eligible ? "green" : "red"}>
+                                    {selectedMatch.eligible ? "Approved" : "Declined"}
+                                </Badge>
+                                <Badge size="lg" variant="outline" colorPalette="blue">
+                                    Fit Score: {selectedMatch.fit_score}%
+                                </Badge>
+                            </Flex>
+
+                            <Box>
+                                <Heading size="sm" mb={3} borderBottomWidth="1px" pb={2}>Evaluation Details</Heading>
+                                <ReasoningList evaluations={selectedMatch.evaluations} />
+                            </Box>
+                        </Card.Body>
+                    </Card.Root>
+                )}
+            </Grid>
+        </Container>
     );
 };

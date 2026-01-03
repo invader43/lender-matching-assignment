@@ -48,6 +48,8 @@ class LenderCreate(LenderBase):
 class LenderResponse(LenderBase):
     id: uuid.UUID
     created_at: datetime
+    ingestion_status: Optional[str] = None
+    ingestion_error: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -74,7 +76,7 @@ class PolicyRuleResponse(PolicyRuleBase):
 
 
 class PolicyBase(BaseModel):
-    name: str = Field(..., max_length=100)
+    name: str
     min_fit_score: int = 0
 
 

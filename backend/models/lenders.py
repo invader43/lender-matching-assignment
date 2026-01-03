@@ -1,15 +1,23 @@
 """Lender model."""
 
 from typing import Optional, List, TYPE_CHECKING
-from sqlalchemy import String, Text, DateTime
+from sqlalchemy import String, Text, DateTime, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import uuid
+import enum
 from database import Base
 
 if TYPE_CHECKING:
     from .policies import Policy
+
+
+class IngestionStatus(str, enum.Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class Lender(Base):
@@ -28,6 +36,14 @@ class Lender(Base):
         default=datetime.utcnow, 
         nullable=False
     )
+    
+    # Ingestion Status
+    ingestion_status: Mapped[Optional[IngestionStatus]] = mapped_column(
+        SAEnum(IngestionStatus, name="ingestion_status_enum"),
+        nullable=True,
+        default=IngestionStatus.PENDING
+    )
+    ingestion_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
     policies: Mapped[List["Policy"]] = relationship(

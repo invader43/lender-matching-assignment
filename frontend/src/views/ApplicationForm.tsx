@@ -2,8 +2,14 @@
  * ApplicationForm - Dynamic loan application form
  */
 
+
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+    Box, Container, Heading, Text, Input, Button, VStack,
+    Card, Flex, Spinner
+} from '@chakra-ui/react';
 import { DynamicFieldRenderer } from '../components/DynamicFieldRenderer';
 import api from '../services/api';
 import type { ParameterDefinition } from '../types/models';
@@ -71,64 +77,81 @@ export const ApplicationForm: React.FC = () => {
 
     if (success) {
         return (
-            <div className="container">
-                <div className="success-message">
-                    <h2>✓ Application Submitted!</h2>
-                    <p>Matching lenders... Redirecting to results...</p>
-                </div>
-            </div>
+            <Container maxW="container.md" py={10}>
+                <Card.Root p={8} textAlign="center" borderLeftWidth={4} borderColor="green.solid">
+                    <Card.Body>
+                        <Heading size="xl" color="green.fg" mb={4}>✓ Application Submitted!</Heading>
+                        <Text color="fg.muted">Matching lenders... Redirecting to results...</Text>
+                        <Flex justify="center" mt={6}>
+                            <Spinner size="lg" color="green.solid" />
+                        </Flex>
+                    </Card.Body>
+                </Card.Root>
+            </Container>
         );
     }
 
     return (
-        <div className="container">
-            <h1>Loan Application</h1>
-            <p className="subtitle">Fill out the form below to find matching lenders</p>
+        <Container maxW="container.md" py={10}>
+            <VStack gap={2} align="start" mb={8}>
+                <Heading size="2xl">Loan Application</Heading>
+                <Text fontSize="lg" color="fg.muted">Fill out the form below to find matching lenders</Text>
+            </VStack>
 
-            <form onSubmit={handleSubmit} className="application-form">
-                <div className="form-group">
-                    <label htmlFor="applicant_name" className="form-label">
-                        Applicant Name *
-                    </label>
-                    <input
-                        type="text"
-                        id="applicant_name"
-                        value={applicantName}
-                        onChange={(e) => setApplicantName(e.target.value)}
-                        className="form-input"
-                        required
-                    />
-                </div>
+            <Card.Root shadow="md">
+                <Card.Body>
+                    <form onSubmit={handleSubmit}>
+                        <VStack gap={6} align="stretch">
+                            <Box>
+                                <Text fontWeight="bold" mb={2}>Applicant Name *</Text>
+                                <Input
+                                    value={applicantName}
+                                    onChange={(e) => setApplicantName(e.target.value)}
+                                    placeholder="Enter your name"
+                                    required
+                                    size="lg"
+                                />
+                            </Box>
 
-                <div className="form-divider"></div>
+                            <Box h="1px" bg="border.muted" my={2} />
 
-                {parameters.length === 0 ? (
-                    <div className="loading">Loading form fields...</div>
-                ) : (
-                    parameters.map((param) => (
-                        <DynamicFieldRenderer
-                            key={param.id}
-                            parameter={param}
-                            value={formData[param.key_name]}
-                            onChange={(value) => handleFieldChange(param.key_name, value)}
-                        />
-                    ))
-                )}
+                            {parameters.length === 0 ? (
+                                <Flex justify="center" p={4}>
+                                    <Spinner color="blue.solid" mr={3} />
+                                    <Text>Loading form fields...</Text>
+                                </Flex>
+                            ) : (
+                                parameters.map((param) => (
+                                    <DynamicFieldRenderer
+                                        key={param.id}
+                                        parameter={param}
+                                        value={formData[param.key_name]}
+                                        onChange={(value) => handleFieldChange(param.key_name, value)}
+                                    />
+                                ))
+                            )}
 
-                {error && (
-                    <div className="error-banner">
-                        {error}
-                    </div>
-                )}
+                            {error && (
+                                <Box bg="red.subtle" color="red.fg" p={3} borderRadius="md">
+                                    {error}
+                                </Box>
+                            )}
 
-                <button
-                    type="submit"
-                    disabled={loading || parameters.length === 0}
-                    className="submit-button"
-                >
-                    {loading ? 'Submitting...' : 'Submit Application'}
-                </button>
-            </form>
-        </div>
+                            <Button
+                                type="submit"
+                                size="lg"
+                                colorPalette="blue"
+                                loading={loading}
+                                loadingText="Submitting..."
+                                mt={4}
+                                disabled={parameters.length === 0}
+                            >
+                                Submit Application
+                            </Button>
+                        </VStack>
+                    </form>
+                </Card.Body>
+            </Card.Root>
+        </Container>
     );
 };

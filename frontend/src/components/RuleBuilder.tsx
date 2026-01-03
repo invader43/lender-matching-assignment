@@ -1,8 +1,9 @@
-/**
- * RuleBuilder - Add new policy rules
- */
-
 import React, { useState } from 'react';
+import {
+    Box, Grid, Input, Flex, Button, Heading, IconButton,
+    chakra
+} from '@chakra-ui/react';
+import { FaPlus, FaTimes } from 'react-icons/fa';
 import type { PolicyRule, ParameterDefinition, RuleOperator, RuleType } from '../types/models';
 
 interface Props {
@@ -51,16 +52,15 @@ export const RuleBuilder: React.FC<Props> = ({ parameters, onAdd }) => {
 
     const renderValueInput = () => {
         if (!selectedParam) {
-            return <input type="text" className="form-input" placeholder="Select parameter first" disabled />;
+            return <Input placeholder="Select parameter first" disabled />;
         }
 
         switch (selectedParam.data_type) {
             case 'number':
             case 'currency':
                 return (
-                    <input
+                    <Input
                         type="number"
-                        className="form-input"
                         value={newRule.value_comparison ?? ''}
                         onChange={(e) => handleChange('value_comparison', parseFloat(e.target.value) || 0)}
                         placeholder="Value"
@@ -68,33 +68,43 @@ export const RuleBuilder: React.FC<Props> = ({ parameters, onAdd }) => {
                 );
             case 'boolean':
                 return (
-                    <select
-                        className="form-select"
+                    <chakra.select
                         value={String(newRule.value_comparison)}
                         onChange={(e) => handleChange('value_comparison', e.target.value === 'true')}
+                        width="full"
+                        p={2}
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        borderWidth="1px"
+                        bg="bg.panel"
+                        _dark={{ bg: "gray.800" }}
                     >
                         <option value="true">True</option>
                         <option value="false">False</option>
-                    </select>
+                    </chakra.select>
                 );
             case 'select':
                 return (
-                    <select
-                        className="form-select"
+                    <chakra.select
                         value={newRule.value_comparison ?? ''}
                         onChange={(e) => handleChange('value_comparison', e.target.value)}
+                        width="full"
+                        p={2}
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        borderWidth="1px"
+                        bg="bg.panel"
+                        _dark={{ bg: "gray.800" }}
                     >
                         <option value="">Select...</option>
-                        {selectedParam.options?.values?.map((opt) => (
+                        {selectedParam.options?.values?.map((opt: string) => (
                             <option key={opt} value={opt}>{opt}</option>
                         ))}
-                    </select>
+                    </chakra.select>
                 );
             default:
                 return (
-                    <input
-                        type="text"
-                        className="form-input"
+                    <Input
                         value={newRule.value_comparison ?? ''}
                         onChange={(e) => handleChange('value_comparison', e.target.value)}
                         placeholder="Value"
@@ -105,36 +115,45 @@ export const RuleBuilder: React.FC<Props> = ({ parameters, onAdd }) => {
 
     if (!isExpanded) {
         return (
-            <button
-                type="button"
-                className="add-rule-btn"
+            <Button
                 onClick={() => setIsExpanded(true)}
+                width="full"
+                borderStyle="dashed"
+                variant="outline"
+                colorPalette="blue"
             >
-                + Add New Rule
-            </button>
+                <FaPlus /> Add New Rule
+            </Button>
         );
     }
 
     return (
-        <div className="rule-builder">
-            <div className="rule-builder-header">
-                <h5>Add New Rule</h5>
-                <button
-                    type="button"
-                    className="close-button"
+        <Box borderWidth="1px" borderRadius="lg" p={5} bg="bg.panel" shadow="sm" mt={4}>
+            <Flex justify="space-between" align="center" mb={4}>
+                <Heading size="sm">Add New Rule</Heading>
+                <IconButton
+                    aria-label="Close"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setIsExpanded(false)}
                 >
-                    ✕
-                </button>
-            </div>
+                    <FaTimes />
+                </IconButton>
+            </Flex>
 
-            <div className="rule-builder-fields">
-                <div className="rule-field">
-                    <label className="rule-field-label">Parameter</label>
-                    <select
-                        className="form-select"
+            <Grid templateColumns={{ base: "1fr", md: "1fr 1fr 1fr 1fr" }} gap={4} mb={4}>
+                <Box>
+                    <Box as="label" fontSize="sm" fontWeight="medium" mb={1} display="block">Parameter</Box>
+                    <chakra.select
                         value={newRule.parameter_key}
                         onChange={(e) => handleChange('parameter_key', e.target.value)}
+                        width="full"
+                        p={2}
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        borderWidth="1px"
+                        bg="bg.panel"
+                        _dark={{ bg: "gray.800" }}
                     >
                         <option value="">Select parameter...</option>
                         {parameters.map((param) => (
@@ -142,68 +161,78 @@ export const RuleBuilder: React.FC<Props> = ({ parameters, onAdd }) => {
                                 {param.display_label}
                             </option>
                         ))}
-                    </select>
-                </div>
+                    </chakra.select>
+                </Box>
 
-                <div className="rule-field">
-                    <label className="rule-field-label">Operator</label>
-                    <select
-                        className="form-select"
+                <Box>
+                    <Box as="label" fontSize="sm" fontWeight="medium" mb={1} display="block">Operator</Box>
+                    <chakra.select
                         value={newRule.operator}
                         onChange={(e) => handleChange('operator', e.target.value)}
+                        width="full"
+                        p={2}
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        borderWidth="1px"
+                        bg="bg.panel"
+                        _dark={{ bg: "gray.800" }}
                     >
                         {OPERATORS.map((op) => (
                             <option key={op.value} value={op.value}>{op.label}</option>
                         ))}
-                    </select>
-                </div>
+                    </chakra.select>
+                </Box>
 
-                <div className="rule-field">
-                    <label className="rule-field-label">Value</label>
+                <Box>
+                    <Box as="label" fontSize="sm" fontWeight="medium" mb={1} display="block">Value</Box>
                     {renderValueInput()}
-                </div>
+                </Box>
 
-                <div className="rule-field">
-                    <label className="rule-field-label">Type</label>
-                    <select
-                        className="form-select"
+                <Box>
+                    <Box as="label" fontSize="sm" fontWeight="medium" mb={1} display="block">Type</Box>
+                    <chakra.select
                         value={newRule.rule_type}
                         onChange={(e) => handleChange('rule_type', e.target.value)}
+                        width="full"
+                        p={2}
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        borderWidth="1px"
+                        bg="bg.panel"
+                        _dark={{ bg: "gray.800" }}
                     >
                         <option value="eligibility">Eligibility</option>
                         <option value="scoring">Scoring</option>
-                    </select>
-                </div>
-            </div>
+                    </chakra.select>
+                </Box>
+            </Grid>
 
-            <div className="rule-field full-width">
-                <label className="rule-field-label">Failure Reason</label>
-                <input
-                    type="text"
-                    className="form-input"
+            <Box mb={6}>
+                <Box as="label" fontSize="sm" fontWeight="medium" mb={1} display="block">Failure Reason</Box>
+                <Input
                     value={newRule.failure_reason ?? ''}
                     onChange={(e) => handleChange('failure_reason', e.target.value)}
                     placeholder="Message when rule fails"
                 />
-            </div>
+            </Box>
 
-            <div className="rule-builder-actions">
-                <button
-                    type="button"
-                    className="button small"
-                    onClick={handleAdd}
-                    disabled={!newRule.parameter_key}
-                >
-                    Add Rule
-                </button>
-                <button
-                    type="button"
-                    className="button small secondary"
+            <Flex justify="flex-end" gap={3}>
+                <Button
+                    variant="ghost"
                     onClick={() => setIsExpanded(false)}
+                    size="sm"
                 >
                     Cancel
-                </button>
-            </div>
-        </div>
+                </Button>
+                <Button
+                    onClick={handleAdd}
+                    disabled={!newRule.parameter_key}
+                    colorPalette="blue"
+                    size="sm"
+                >
+                    Add Rule
+                </Button>
+            </Flex>
+        </Box>
     );
 };

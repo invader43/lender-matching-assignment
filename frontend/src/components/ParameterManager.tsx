@@ -3,6 +3,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import {
+    Box, Input, Text, Heading, Badge, Flex, HStack, VStack,
+    Spinner, IconButton, Grid, chakra
+} from '@chakra-ui/react';
+import { Button } from '@/components/ui/button';
+import { FaFont, FaHashtag, FaCheckSquare, FaList, FaDollarSign, FaEdit, FaBan, FaCheck, FaTimes, FaPlus } from 'react-icons/fa';
 import api from '../services/api';
 import type { ParameterDefinition, DataType } from '../types/models';
 
@@ -156,245 +162,248 @@ export const ParameterManager: React.FC<Props> = ({ onClose }) => {
 
     const getTypeIcon = (type: DataType) => {
         switch (type) {
-            case 'number': return '🔢';
-            case 'currency': return '💰';
-            case 'boolean': return '✓✗';
-            case 'select': return '📋';
-            default: return '📝';
+            case 'number': return <FaHashtag />;
+            case 'currency': return <FaDollarSign />;
+            case 'boolean': return <FaCheckSquare />;
+            case 'select': return <FaList />;
+            default: return <FaFont />;
         }
     };
 
     if (loading) {
-        return <div className="param-manager-loading">Loading parameters...</div>;
+        return (
+            <Flex justify="center" align="center" h="200px">
+                <Spinner size="xl" color="blue.500" />
+                <Text ml={4} color="gray.500">Loading parameters...</Text>
+            </Flex>
+        );
     }
 
     return (
-        <div className="param-manager">
-            <div className="param-manager-header">
-                <h3>📊 Parameter Registry</h3>
-                <div className="param-manager-actions">
-                    <label className="checkbox-inline">
-                        <input
+        <Box p={4} bg="bg.subtle" rounded="md" h="100%">
+            <Flex justify="space-between" align="center" mb={6}>
+                <Heading size="md" color="fg.default">📊 Parameter Registry</Heading>
+                <HStack gap={4}>
+                    <Box as="label" display="flex" alignItems="center" gap={2} cursor="pointer">
+                        <chakra.input
                             type="checkbox"
                             checked={showInactive}
-                            onChange={(e) => setShowInactive(e.target.checked)}
+                            onChange={(e: any) => setShowInactive(e.target.checked)}
+                            width="16px"
+                            height="16px"
                         />
-                        Show inactive
-                    </label>
-                    <button
-                        className="button small"
+                        <Text fontSize="sm">Show inactive</Text>
+                    </Box>
+                    <Button
+                        size="sm"
                         onClick={() => setIsCreating(true)}
                         disabled={isCreating}
                     >
-                        + Add Parameter
-                    </button>
+                        <FaPlus style={{ marginRight: '8px' }} /> Add Parameter
+                    </Button>
                     {onClose && (
-                        <button className="button small secondary" onClick={onClose}>
+                        <Button variant="outline" size="sm" onClick={onClose}>
                             Close
-                        </button>
+                        </Button>
                     )}
-                </div>
-            </div>
+                </HStack>
+            </Flex>
 
-            {error && <div className="param-status error">{error}</div>}
-            {success && <div className="param-status success">{success}</div>}
+            {error && <Box bg="red.subtle" color="red.fg" p={2} rounded="md" mb={4}>{error}</Box>}
+            {success && <Box bg="green.subtle" color="green.fg" p={2} rounded="md" mb={4}>{success}</Box>}
 
             {/* Create new parameter form */}
             {isCreating && (
-                <div className="param-create-form">
-                    <h4>Create New Parameter</h4>
-                    <div className="param-create-fields">
-                        <div className="param-field">
-                            <label>Key Name *</label>
-                            <input
-                                type="text"
-                                className="form-input"
+                <Box mb={6} shadow="md" borderColor="blue.solid" borderTopWidth={4} bg="bg.panel" rounded="md" p={4}>
+                    <Heading size="sm" mb={4}>Create New Parameter</Heading>
+                    <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4} mb={4}>
+                        <Box>
+                            <Text fontWeight="bold" fontSize="sm" mb={1}>Key Name</Text>
+                            <Input
                                 value={newParam.key_name}
                                 onChange={(e) => setNewParam(prev => ({ ...prev, key_name: e.target.value.toLowerCase().replace(/\s+/g, '_') }))}
                                 placeholder="e.g., annual_revenue"
+                                bg="bg.surface"
                             />
-                        </div>
-                        <div className="param-field">
-                            <label>Display Label *</label>
-                            <input
-                                type="text"
-                                className="form-input"
+                        </Box>
+                        <Box>
+                            <Text fontWeight="bold" fontSize="sm" mb={1}>Display Label</Text>
+                            <Input
                                 value={newParam.display_label}
                                 onChange={(e) => setNewParam(prev => ({ ...prev, display_label: e.target.value }))}
                                 placeholder="e.g., Annual Revenue"
+                                bg="bg.surface"
                             />
-                        </div>
-                        <div className="param-field">
-                            <label>Data Type</label>
-                            <select
-                                className="form-select"
+                        </Box>
+                        <Box>
+                            <Text fontWeight="bold" fontSize="sm" mb={1}>Data Type</Text>
+                            <chakra.select
+                                width="100%"
+                                p={2}
+                                borderWidth="1px"
+                                borderRadius="md"
+                                bg="bg.surface"
                                 value={newParam.data_type}
-                                onChange={(e) => setNewParam(prev => ({ ...prev, data_type: e.target.value as DataType }))}
+                                onChange={(e: any) => setNewParam(prev => ({ ...prev, data_type: e.target.value as DataType }))}
                             >
                                 {DATA_TYPES.map(dt => (
                                     <option key={dt.value} value={dt.value}>{dt.label}</option>
                                 ))}
-                            </select>
-                        </div>
-                        <div className="param-field full-width">
-                            <label>Description</label>
-                            <input
-                                type="text"
-                                className="form-input"
+                            </chakra.select>
+                        </Box>
+                        <Box>
+                            <Text fontWeight="bold" fontSize="sm" mb={1}>Description</Text>
+                            <Input
                                 value={newParam.description}
                                 onChange={(e) => setNewParam(prev => ({ ...prev, description: e.target.value }))}
                                 placeholder="Help text for this field"
+                                bg="bg.surface"
                             />
-                        </div>
-                        {newParam.data_type === 'select' && (
-                            <div className="param-field full-width">
-                                <label>Options</label>
-                                <div className="options-editor">
-                                    <div className="options-list">
-                                        {newParam.options?.values?.map((opt, idx) => (
-                                            <span key={idx} className="option-tag">
-                                                {opt}
-                                                <button type="button" onClick={() => removeOptionFromNew(idx)}>×</button>
-                                            </span>
-                                        ))}
-                                    </div>
-                                    <div className="options-add">
-                                        <input
-                                            type="text"
-                                            className="form-input"
-                                            value={newOptionValue}
-                                            onChange={(e) => setNewOptionValue(e.target.value)}
-                                            placeholder="Add option..."
-                                            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addOptionToNew())}
-                                        />
-                                        <button type="button" className="button small" onClick={addOptionToNew}>
-                                            Add
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <div className="param-create-actions">
-                        <button
-                            className="button small"
-                            onClick={handleCreateParam}
-                            disabled={saving}
-                        >
-                            {saving ? 'Creating...' : 'Create Parameter'}
-                        </button>
-                        <button
-                            className="button small secondary"
-                            onClick={() => setIsCreating(false)}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
+                        </Box>
+                    </Grid>
+
+                    {newParam.data_type === 'select' && (
+                        <Box mb={4} p={3} bg="bg.subtle" rounded="md" border="1px" borderColor="border.muted">
+                            <Text fontWeight="bold" fontSize="sm" mb={2}>Options</Text>
+                            <Flex wrap="wrap" gap={2} mb={2}>
+                                {newParam.options?.values?.map((opt, idx) => (
+                                    <Badge key={idx} colorPalette="blue" display="flex" alignItems="center" px={2} py={1} rounded="full">
+                                        {opt}
+                                        <IconButton
+                                            aria-label="Remove option"
+                                            size="xs"
+                                            variant="ghost"
+                                            ml={1}
+                                            h="auto"
+                                            minW="auto"
+                                            onClick={() => removeOptionFromNew(idx)}
+                                        >
+                                            <FaTimes />
+                                        </IconButton>
+                                    </Badge>
+                                ))}
+                            </Flex>
+                            <HStack>
+                                <Input
+                                    size="sm"
+                                    value={newOptionValue}
+                                    onChange={(e) => setNewOptionValue(e.target.value)}
+                                    placeholder="Add option..."
+                                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addOptionToNew())}
+                                    bg="bg.surface"
+                                />
+                                <Button size="sm" onClick={addOptionToNew}>Add</Button>
+                            </HStack>
+                        </Box>
+                    )}
+
+                    <HStack justify="flex-end" mt={4}>
+                        <Button variant="ghost" onClick={() => setIsCreating(false)}>Cancel</Button>
+                        <Button onClick={handleCreateParam} loading={saving}>Create Parameter</Button>
+                    </HStack>
+                </Box>
             )}
 
             {/* Parameters list */}
-            <div className="param-list">
+            <VStack gap={4} align="stretch" pb={10}>
                 {parameters.length === 0 ? (
-                    <p className="empty-state">No parameters found.</p>
+                    <Text color="fg.muted" textAlign="center" py={8}>No parameters found.</Text>
                 ) : (
                     parameters.map((param) => (
-                        <div
+                        <Box
                             key={param.id}
-                            className={`param-item ${!param.is_active ? 'inactive' : ''} ${editingId === param.id ? 'editing' : ''}`}
+                            shadow="sm"
+                            borderLeftWidth={4}
+                            borderColor={!param.is_active ? 'border.muted' : 'blue.solid'}
+                            opacity={!param.is_active ? 0.8 : 1}
+                            bg="bg.panel"
+                            rounded="md"
+                            p={4}
                         >
                             {editingId === param.id ? (
                                 // Edit mode
-                                <div className="param-edit-form">
-                                    <div className="param-edit-fields">
-                                        <div className="param-field">
-                                            <label>Display Label</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
+                                <Box>
+                                    <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={3} mb={3}>
+                                        <Box>
+                                            <Text fontSize="xs" fontWeight="bold">Label</Text>
+                                            <Input
+                                                size="sm"
                                                 value={editForm.display_label || ''}
                                                 onChange={(e) => handleEditChange('display_label', e.target.value)}
                                             />
-                                        </div>
-                                        <div className="param-field">
-                                            <label>Data Type</label>
-                                            <select
-                                                className="form-select"
+                                        </Box>
+                                        <Box>
+                                            <Text fontSize="xs" fontWeight="bold">Type</Text>
+                                            <chakra.select
+                                                width="100%"
+                                                p={1}
+                                                fontSize="sm"
+                                                borderWidth="1px"
+                                                borderRadius="md"
                                                 value={editForm.data_type || param.data_type}
-                                                onChange={(e) => handleEditChange('data_type', e.target.value)}
+                                                onChange={(e: any) => handleEditChange('data_type', e.target.value)}
                                             >
                                                 {DATA_TYPES.map(dt => (
                                                     <option key={dt.value} value={dt.value}>{dt.label}</option>
                                                 ))}
-                                            </select>
-                                        </div>
-                                        <div className="param-field full-width">
-                                            <label>Description</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
+                                            </chakra.select>
+                                        </Box>
+                                        <Box gridColumn={{ md: "span 2" }}>
+                                            <Text fontSize="xs" fontWeight="bold">Description</Text>
+                                            <Input
+                                                size="sm"
                                                 value={editForm.description || ''}
                                                 onChange={(e) => handleEditChange('description', e.target.value)}
                                             />
-                                        </div>
-                                    </div>
-                                    <div className="param-edit-actions">
-                                        <button
-                                            className="button small"
-                                            onClick={() => saveEdit(param.key_name)}
-                                            disabled={saving}
-                                        >
-                                            {saving ? 'Saving...' : 'Save'}
-                                        </button>
-                                        <button
-                                            className="button small secondary"
-                                            onClick={cancelEditing}
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </div>
+                                        </Box>
+                                    </Grid>
+                                    <HStack justify="flex-end">
+                                        <Button size="sm" variant="ghost" onClick={cancelEditing}>Cancel</Button>
+                                        <Button size="sm" onClick={() => saveEdit(param.key_name)} loading={saving}>Save</Button>
+                                    </HStack>
+                                </Box>
                             ) : (
                                 // View mode
-                                <>
-                                    <div className="param-info">
-                                        <div className="param-header">
-                                            <span className="param-type-icon">{getTypeIcon(param.data_type)}</span>
-                                            <span className="param-key">{param.key_name}</span>
-                                            {!param.is_active && <span className="param-badge inactive">Inactive</span>}
-                                        </div>
-                                        <div className="param-label">{param.display_label}</div>
-                                        {param.description && (
-                                            <div className="param-desc">{param.description}</div>
-                                        )}
+                                <Flex justify="space-between" align="center">
+                                    <Box flex="1">
+                                        <HStack mb={1}>
+                                            <Box color="fg.muted" fontSize="sm">{getTypeIcon(param.data_type)}</Box>
+                                            <Text fontWeight="bold" fontSize="sm">{param.key_name}</Text>
+                                            {!param.is_active && <Badge colorPalette="gray">Inactive</Badge>}
+                                        </HStack>
+                                        <Text fontSize="md">{param.display_label}</Text>
+                                        {param.description && <Text fontSize="xs" color="fg.muted">{param.description}</Text>}
                                         {param.data_type === 'select' && param.options?.values && (
-                                            <div className="param-options">
+                                            <Text fontSize="xs" color="fg.muted" mt={1}>
                                                 Options: {param.options.values.join(', ')}
-                                            </div>
+                                            </Text>
                                         )}
-                                    </div>
-                                    <div className="param-actions">
-                                        <button
-                                            className="param-action-btn"
+                                    </Box>
+                                    <HStack>
+                                        <IconButton
+                                            aria-label="Edit"
+                                            size="sm"
+                                            variant="ghost"
                                             onClick={() => startEditing(param)}
-                                            title="Edit"
                                         >
-                                            ✏️
-                                        </button>
-                                        <button
-                                            className="param-action-btn"
+                                            <FaEdit />
+                                        </IconButton>
+                                        <IconButton
+                                            aria-label={param.is_active ? 'Deactivate' : 'Activate'}
+                                            size="sm"
+                                            colorPalette={param.is_active ? 'red' : 'green'}
+                                            variant="ghost"
                                             onClick={() => toggleActive(param)}
-                                            title={param.is_active ? 'Deactivate' : 'Activate'}
                                         >
-                                            {param.is_active ? '🚫' : '✅'}
-                                        </button>
-                                    </div>
-                                </>
+                                            {param.is_active ? <FaBan /> : <FaCheck />}
+                                        </IconButton>
+                                    </HStack>
+                                </Flex>
                             )}
-                        </div>
+                        </Box>
                     ))
                 )}
-            </div>
-        </div>
+            </VStack>
+        </Box>
     );
 };

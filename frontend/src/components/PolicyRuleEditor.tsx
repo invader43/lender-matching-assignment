@@ -1,8 +1,9 @@
-/**
- * PolicyRuleEditor - Edit individual policy rules
- */
-
 import React from 'react';
+import {
+    Box, Grid, Input, Flex, IconButton,
+    chakra
+} from '@chakra-ui/react';
+import { FaTrash } from 'react-icons/fa';
 import type { PolicyRule, ParameterDefinition, RuleOperator, RuleType } from '../types/models';
 
 interface Props {
@@ -43,9 +44,7 @@ export const PolicyRuleEditor: React.FC<Props> = ({
     const renderValueInput = () => {
         if (!selectedParam) {
             return (
-                <input
-                    type="text"
-                    className="form-input"
+                <Input
                     value={JSON.stringify(rule.value_comparison) || ''}
                     onChange={(e) => handleChange('value_comparison', e.target.value)}
                     placeholder="Value"
@@ -57,9 +56,8 @@ export const PolicyRuleEditor: React.FC<Props> = ({
             case 'number':
             case 'currency':
                 return (
-                    <input
+                    <Input
                         type="number"
-                        className="form-input"
                         value={rule.value_comparison ?? ''}
                         onChange={(e) => handleChange('value_comparison', parseFloat(e.target.value) || 0)}
                         placeholder="Numeric value"
@@ -67,33 +65,43 @@ export const PolicyRuleEditor: React.FC<Props> = ({
                 );
             case 'boolean':
                 return (
-                    <select
-                        className="form-select"
+                    <chakra.select
                         value={String(rule.value_comparison)}
                         onChange={(e) => handleChange('value_comparison', e.target.value === 'true')}
+                        width="full"
+                        p={2}
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        borderWidth="1px"
+                        bg="bg.panel"
+                        _dark={{ bg: "gray.800" }}
                     >
                         <option value="true">True</option>
                         <option value="false">False</option>
-                    </select>
+                    </chakra.select>
                 );
             case 'select':
                 return (
-                    <select
-                        className="form-select"
+                    <chakra.select
                         value={rule.value_comparison ?? ''}
                         onChange={(e) => handleChange('value_comparison', e.target.value)}
+                        width="full"
+                        p={2}
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        borderWidth="1px"
+                        bg="bg.panel"
+                        _dark={{ bg: "gray.800" }}
                     >
                         <option value="">Select value...</option>
-                        {selectedParam.options?.values?.map((opt) => (
+                        {selectedParam.options?.values?.map((opt: string) => (
                             <option key={opt} value={opt}>{opt}</option>
                         ))}
-                    </select>
+                    </chakra.select>
                 );
             default:
                 return (
-                    <input
-                        type="text"
-                        className="form-input"
+                    <Input
                         value={rule.value_comparison ?? ''}
                         onChange={(e) => handleChange('value_comparison', e.target.value)}
                         placeholder="Text value"
@@ -103,15 +111,21 @@ export const PolicyRuleEditor: React.FC<Props> = ({
     };
 
     return (
-        <div className="rule-editor">
-            <div className="rule-editor-row">
+        <Box borderWidth="1px" borderRadius="md" p={4} bg="bg.panel" position="relative" mt={4}>
+            <Grid templateColumns={{ base: "1fr", md: "1.5fr 1fr 1fr 1fr 40px" }} gap={4} alignItems="end" mb={4}>
                 {/* Parameter selector */}
-                <div className="rule-field">
-                    <label className="rule-field-label">Parameter</label>
-                    <select
-                        className="form-select"
+                <Box>
+                    <Box as="label" fontSize="sm" fontWeight="medium" mb={1} display="block">Parameter</Box>
+                    <chakra.select
                         value={rule.parameter_key}
                         onChange={(e) => handleChange('parameter_key', e.target.value)}
+                        width="full"
+                        p={2}
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        borderWidth="1px"
+                        bg="bg.panel"
+                        _dark={{ bg: "gray.800" }}
                     >
                         <option value="">Select parameter...</option>
                         {parameters.map((param) => (
@@ -119,65 +133,76 @@ export const PolicyRuleEditor: React.FC<Props> = ({
                                 {param.display_label}
                             </option>
                         ))}
-                    </select>
-                </div>
+                    </chakra.select>
+                </Box>
 
                 {/* Operator selector */}
-                <div className="rule-field">
-                    <label className="rule-field-label">Operator</label>
-                    <select
-                        className="form-select"
+                <Box>
+                    <Box as="label" fontSize="sm" fontWeight="medium" mb={1} display="block">Operator</Box>
+                    <chakra.select
                         value={rule.operator}
                         onChange={(e) => handleChange('operator', e.target.value as RuleOperator)}
+                        width="full"
+                        p={2}
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        borderWidth="1px"
+                        bg="bg.panel"
+                        _dark={{ bg: "gray.800" }}
                     >
                         {OPERATORS.map((op) => (
                             <option key={op.value} value={op.value}>{op.label}</option>
                         ))}
-                    </select>
-                </div>
+                    </chakra.select>
+                </Box>
 
                 {/* Value input */}
-                <div className="rule-field">
-                    <label className="rule-field-label">Value</label>
+                <Box>
+                    <Box as="label" fontSize="sm" fontWeight="medium" mb={1} display="block">Value</Box>
                     {renderValueInput()}
-                </div>
+                </Box>
 
                 {/* Rule type */}
-                <div className="rule-field">
-                    <label className="rule-field-label">Type</label>
-                    <select
-                        className="form-select"
+                <Box>
+                    <Box as="label" fontSize="sm" fontWeight="medium" mb={1} display="block">Type</Box>
+                    <chakra.select
                         value={rule.rule_type}
                         onChange={(e) => handleChange('rule_type', e.target.value as RuleType)}
+                        width="full"
+                        p={2}
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        borderWidth="1px"
+                        bg="bg.panel"
+                        _dark={{ bg: "gray.800" }}
                     >
                         {RULE_TYPES.map((rt) => (
                             <option key={rt.value} value={rt.value}>{rt.label}</option>
                         ))}
-                    </select>
-                </div>
+                    </chakra.select>
+                </Box>
 
                 {/* Delete button */}
-                <button
-                    type="button"
-                    className="rule-delete-btn"
-                    onClick={() => onDelete(rule.id)}
+                <IconButton
                     aria-label="Delete rule"
+                    colorPalette="red"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(rule.id)}
                 >
-                    🗑️
-                </button>
-            </div>
+                    <FaTrash />
+                </IconButton>
+            </Grid>
 
             {/* Failure reason */}
-            <div className="rule-field full-width">
-                <label className="rule-field-label">Failure Reason</label>
-                <input
-                    type="text"
-                    className="form-input"
+            <Box>
+                <Box as="label" fontSize="sm" fontWeight="medium" mb={1} display="block">Failure Reason</Box>
+                <Input
                     value={rule.failure_reason ?? ''}
                     onChange={(e) => handleChange('failure_reason', e.target.value)}
                     placeholder="Message shown when rule fails (e.g., 'Credit score below minimum 650')"
                 />
-            </div>
-        </div>
+            </Box>
+        </Box>
     );
 };

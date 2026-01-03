@@ -6,6 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import List
 import uuid
+import aiofiles
+from pathlib import Path
 
 from database import get_db
 from models.lenders import Lender
@@ -90,11 +92,23 @@ async def ingest_lender_guidelines(
     # Generate task ID
     task_id = str(uuid.uuid4())
     
-    # Add background task
+    # Create uploads directory if it doesn't exist
+    upload_dir = Path("uploads")
+    upload_dir.mkdir(exist_ok=True)
+    
+    # Save PDF to disk
+    pdf_filename = f"{lender_id}_{task_id}_{file.filename}"
+    pdf_path = upload_dir / pdf_filename
+    
+    async with aiofiles.open(pdf_path, 'wb') as f:
+        content = await file.read()
+        await f.write(content)
+    
+    # Add background task (passing path instead of file)
     background_tasks.add_task(
         process_lender_pdf,
         lender_id=lender_id,
-        file=file,
+        pdf_path=str(pdf_path),
         task_id=task_id
     )
     

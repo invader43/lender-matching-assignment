@@ -1,8 +1,6 @@
-/**
- * ReasoningList - Shows detailed rule-by-rule evaluation breakdown
- */
-
 import React from 'react';
+import { Box, List, Heading, Flex, Text, Icon } from '@chakra-ui/react';
+import { FaCheck, FaTimes } from 'react-icons/fa';
 import type { RuleEvaluationResult } from '../types/models';
 
 interface ReasoningListProps {
@@ -35,60 +33,68 @@ export const ReasoningList: React.FC<ReasoningListProps> = ({ evaluations }) => 
     };
 
     return (
-        <div className="reasoning-list">
+        <Box>
             {passedRules.length > 0 && (
-                <div className="criteria-section passed">
-                    <h4 className="section-title">
-                        <span className="icon">✓</span>
-                        Criteria Met ({passedRules.length})
-                    </h4>
-                    <ul className="criteria-list">
+                <Box mb={6}>
+                    <Flex align="center" gap={2} mb={3} color="green.solid">
+                        <Icon as={FaCheck} />
+                        <Heading size="sm">Criteria Met ({passedRules.length})</Heading>
+                    </Flex>
+                    <List.Root gap={2} variant="plain">
                         {passedRules.map((evaluation) => (
-                            <li key={evaluation.rule_id} className="criteria-item">
-                                <span className="check-icon">✓</span>
-                                <div className="criteria-details">
-                                    <strong>{evaluation.parameter_label}:</strong>{' '}
-                                    {formatValue(evaluation.actual_value)}{' '}
-                                    {getOperatorSymbol(evaluation.operator)}{' '}
-                                    {formatValue(evaluation.threshold_value)}
-                                </div>
-                            </li>
+                            <List.Item key={evaluation.rule_id}>
+                                <Flex gap={2} align="start">
+                                    <List.Indicator asChild color="green.solid">
+                                        <FaCheck />
+                                    </List.Indicator>
+                                    <Box fontSize="sm">
+                                        <Text as="span" fontWeight="bold">{evaluation.parameter_label}:</Text>{' '}
+                                        {formatValue(evaluation.actual_value)}{' '}
+                                        {getOperatorSymbol(evaluation.operator)}{' '}
+                                        {formatValue(evaluation.threshold_value)}
+                                    </Box>
+                                </Flex>
+                            </List.Item>
                         ))}
-                    </ul>
-                </div>
+                    </List.Root>
+                </Box>
             )}
 
             {failedRules.length > 0 && (
-                <div className="criteria-section failed">
-                    <h4 className="section-title">
-                        <span className="icon">✗</span>
-                        Criteria Failed ({failedRules.length})
-                    </h4>
-                    <ul className="criteria-list">
+                <Box mb={4}>
+                    <Flex align="center" gap={2} mb={3} color="red.solid">
+                        <Icon as={FaTimes} />
+                        <Heading size="sm">Criteria Failed ({failedRules.length})</Heading>
+                    </Flex>
+                    <List.Root gap={2} variant="plain">
                         {failedRules.map((evaluation) => (
-                            <li key={evaluation.rule_id} className="criteria-item">
-                                <span className="x-icon">✗</span>
-                                <div className="criteria-details">
-                                    <strong>{evaluation.parameter_label}:</strong>{' '}
-                                    {evaluation.failure_reason || (
-                                        <>
-                                            {formatValue(evaluation.actual_value)}{' '}
-                                            {getOperatorSymbol(evaluation.operator)}{' '}
-                                            {formatValue(evaluation.threshold_value)}
-                                        </>
-                                    )}
-                                </div>
-                            </li>
+                            <List.Item key={evaluation.rule_id}>
+                                <Flex gap={2} align="start">
+                                    <List.Indicator asChild color="red.solid">
+                                        <FaTimes />
+                                    </List.Indicator>
+                                    <Box fontSize="sm">
+                                        <Text as="span" fontWeight="bold">{evaluation.parameter_label}:</Text>{' '}
+                                        {evaluation.failure_reason || (
+                                            <>
+                                                {formatValue(evaluation.actual_value)}{' '}
+                                                {getOperatorSymbol(evaluation.operator)}{' '}
+                                                {formatValue(evaluation.threshold_value)}
+                                            </>
+                                        )}
+                                    </Box>
+                                </Flex>
+                            </List.Item>
                         ))}
-                    </ul>
-                </div>
+                    </List.Root>
+                </Box>
             )}
 
             {evaluations.length === 0 && (
-                <div className="no-evaluations">
+                <Text color="fg.muted" fontStyle="italic">
                     No evaluation criteria available
-                </div>
+                </Text>
             )}
-        </div>
+        </Box>
     );
 };

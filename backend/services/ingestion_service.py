@@ -12,6 +12,7 @@ from database import DATABASE_URL
 from models.parameter_definitions import ParameterDefinition, DataType
 from models.policies import Policy
 from models.policy_rules import PolicyRule, RuleOperator, RuleType
+from models.lenders import Lender, IngestionStatus
 from services.gemini_service import get_gemini_service
 
 
@@ -56,50 +57,50 @@ def convert_rule_type(value: str) -> RuleType:
     return mapping.get(value.lower(), RuleType.ELIGIBILITY)
 
 
+
 async def process_lender_pdf(
     lender_id: uuid.UUID,
-    file: UploadFile,
+    pdf_path: str,
     task_id: str
 ):
     """
     Background task to process a lender PDF.
     
     Steps:
-    1. Save PDF to disk
+    1. Update status to PROCESSING
     2. Fetch current parameter definitions
-    3. Call Gemini service to extract rules
+    3. Call Gemini service to extract rules from the saved PDF
     4. Create new parameters if needed
     5. Create policy and rules in database
-    
-    Args:
-        lender_id: ID of the lender
-        file: Uploaded PDF file
-        task_id: Unique task identifier
+    6. Update status to COMPLETED (or FAILED)
     """
-    pdf_path = None
-    
-    try:
-        # Create uploads directory if it doesn't exist
-        upload_dir = Path("uploads")
-        upload_dir.mkdir(exist_ok=True)
-        
-        # Save PDF to disk
-        pdf_filename = f"{task_id}_{file.filename}"
-        pdf_path = upload_dir / pdf_filename
-        
-        async with aiofiles.open(pdf_path, 'wb') as f:
-            content = await file.read()
-            await f.write(content)
-        
-        # Get database session
+    # Helper to update lender status
+    async def update_status(status: IngestionStatus, error_msg: str = None):
         async with SessionLocal() as db:
-            # Fetch current parameter definitions
+            lender = await db.get(Lender, lender_id)
+            if lender:
+                lender.ingestion_status = status
+                lender.ingestion_error = error_msg
+                await db.commit()
+
+    try:
+        # 1. Update status to PROCESSING
+        await update_status(IngestionStatus.PROCESSING)
+        
+        # Get path object
+        file_path = Path(pdf_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"PDF file not found at {pdf_path}")
+
+        # 2. Fetch current parameter definitions (Read-only session)
+        current_parameters = []
+        async with SessionLocal() as db:
             result = await db.execute(
                 select(ParameterDefinition).where(ParameterDefinition.is_active == True)
             )
             parameters = result.scalars().all()
             
-            # Convert to dict format for Gemini
+            # Convert to dict format for Gemini immediately to detach from session
             current_parameters = [
                 {
                     "key_name": p.key_name,
@@ -110,22 +111,29 @@ async def process_lender_pdf(
                 for p in parameters
             ]
             
-            # Call Gemini service
-            gemini_service = get_gemini_service()
-            extraction_result = await gemini_service.extract_rules_from_pdf(
-                str(pdf_path),
-                current_parameters
+        # 3. Call Gemini service (No DB session open)
+        gemini_service = get_gemini_service()
+        extraction_result = await gemini_service.extract_rules_from_pdf(
+            str(file_path),
+            current_parameters
+        )
+        
+        # 4. Save results (Write session)
+        async with SessionLocal() as db:
+            # Re-fetch active parameters to check for duplicates created in interim (optional but safe)
+            result = await db.execute(
+                select(ParameterDefinition).where(ParameterDefinition.is_active == True)
             )
+            existing_params = result.scalars().all()
+            param_map = {p.key_name: p for p in existing_params}
             
             # Create new parameters if needed
-            param_map = {p.key_name: p for p in parameters}
-            
             for new_param in extraction_result.get("new_parameters", []):
                 if new_param["key_name"] not in param_map:
                     parameter = ParameterDefinition(
                         key_name=new_param["key_name"],
                         display_label=new_param["display_label"],
-                        data_type=convert_data_type(new_param["data_type"]),  # Convert to enum
+                        data_type=convert_data_type(new_param["data_type"]),
                         options=new_param.get("options"),
                         description=new_param.get("description"),
                         is_active=True
@@ -136,7 +144,10 @@ async def process_lender_pdf(
             await db.commit()
             
             # Create policy
-            policy_name = f"Policy from {file.filename}"
+            policy_name = f"Policy from {file_path.name}"
+            # Ensure name isn't too long if we kept the limit (we removed it, but good practice)
+            # policy_name = policy_name[:99] 
+            
             policy = Policy(
                 lender_id=lender_id,
                 name=policy_name,
@@ -150,9 +161,9 @@ async def process_lender_pdf(
                 rule = PolicyRule(
                     policy_id=policy.id,
                     parameter_key=rule_data["parameter"],
-                    operator=convert_rule_operator(rule_data["operator"]),  # Convert to enum
+                    operator=convert_rule_operator(rule_data["operator"]),
                     value_comparison=rule_data["value"],
-                    rule_type=convert_rule_type(rule_data["type"]),  # Convert to enum
+                    rule_type=convert_rule_type(rule_data["type"]),
                     weight=rule_data.get("weight", 0),
                     failure_reason=rule_data.get("reason")
                 )
@@ -161,20 +172,17 @@ async def process_lender_pdf(
             await db.commit()
             
             print(f"✅ Successfully processed PDF for lender {lender_id}")
-            print(f"   Created policy: {policy.name}")
+            print(f"   Created policy: {policy_name}")
             print(f"   Extracted {len(extraction_result['rules'])} rules")
-            print(f"   Created {len(extraction_result.get('new_parameters', []))} new parameters")
+            
+        # 6. Update status to COMPLETED
+        await update_status(IngestionStatus.COMPLETED)
             
     except Exception as e:
         print(f"❌ Error processing PDF: {str(e)}")
         import traceback
         traceback.print_exc()
-        
-    finally:
-        # Clean up PDF file
-        if pdf_path and os.path.exists(pdf_path):
-            try:
-                os.remove(pdf_path)
-            except:
-                pass
+        # Update status to FAILED
+        await update_status(IngestionStatus.FAILED, str(e))
+
 

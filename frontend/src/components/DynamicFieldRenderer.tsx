@@ -1,8 +1,5 @@
-/**
- * DynamicFieldRenderer - Renders appropriate input based on parameter definition
- */
-
 import React from 'react';
+import { Box, Text, Input, chakra, Flex } from '@chakra-ui/react';
 import type { ParameterDefinition } from '../types/models';
 
 interface DynamicFieldRendererProps {
@@ -24,58 +21,63 @@ export const DynamicFieldRenderer: React.FC<DynamicFieldRendererProps> = ({
         switch (data_type) {
             case 'string':
                 return (
-                    <input
-                        type="text"
+                    <Input
                         id={key_name}
                         name={key_name}
                         value={value || ''}
                         onChange={(e) => onChange(e.target.value)}
-                        className="form-input"
                         placeholder={description}
+                        bg="bg.surface"
                     />
                 );
 
             case 'number':
             case 'currency':
                 return (
-                    <input
+                    <Input
                         type="number"
                         id={key_name}
                         name={key_name}
                         value={value || ''}
                         onChange={(e) => onChange(parseFloat(e.target.value))}
-                        className="form-input"
                         placeholder={description}
                         step={data_type === 'currency' ? '0.01' : 'any'}
+                        bg="bg.surface"
                     />
                 );
 
             case 'boolean':
                 return (
-                    <div className="checkbox-wrapper">
-                        <input
+                    <Flex align="center" gap={2}>
+                        <chakra.input
                             type="checkbox"
                             id={key_name}
                             name={key_name}
                             checked={value || false}
-                            onChange={(e) => onChange(e.target.checked)}
-                            className="form-checkbox"
+                            onChange={(e: any) => onChange(e.target.checked)}
+                            w={4} h={4}
+                            accentColor="blue.500"
                         />
-                        <label htmlFor={key_name} className="checkbox-label">
+                        <label htmlFor={key_name} style={{ cursor: 'pointer' }}>
                             {description || 'Yes'}
                         </label>
-                    </div>
+                    </Flex>
                 );
 
             case 'select':
                 const selectOptions = options?.values || [];
                 return (
-                    <select
+                    <chakra.select
                         id={key_name}
                         name={key_name}
                         value={value || ''}
-                        onChange={(e) => onChange(e.target.value)}
-                        className="form-select"
+                        onChange={(e: any) => onChange(e.target.value)}
+                        w="full"
+                        p={2}
+                        borderWidth="1px"
+                        borderRadius="md"
+                        borderColor="border.muted"
+                        bg="bg.surface"
                     >
                         <option value="">-- Select --</option>
                         {selectOptions.map((option) => (
@@ -83,33 +85,34 @@ export const DynamicFieldRenderer: React.FC<DynamicFieldRendererProps> = ({
                                 {option}
                             </option>
                         ))}
-                    </select>
+                    </chakra.select>
                 );
 
             default:
                 return (
-                    <input
-                        type="text"
+                    <Input
                         id={key_name}
                         name={key_name}
                         value={value || ''}
                         onChange={(e) => onChange(e.target.value)}
-                        className="form-input"
+                        bg="bg.surface"
                     />
                 );
         }
     };
 
     return (
-        <div className="form-group">
-            <label htmlFor={key_name} className="form-label">
+        <Box mb={4}>
+            <label htmlFor={key_name} style={{ fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
                 {display_label}
-                {description && data_type !== 'boolean' && (
-                    <span className="field-description">{description}</span>
-                )}
             </label>
+            {description && data_type !== 'boolean' && (
+                <Text fontSize="xs" color="fg.muted" mb={2}>{description}</Text>
+            )}
+
             {renderInput()}
-            {error && <span className="error-message">{error}</span>}
-        </div>
+
+            {error && <Text color="red.fg" fontSize="sm" mt={1}>{error}</Text>}
+        </Box>
     );
 };

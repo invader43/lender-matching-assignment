@@ -45,6 +45,8 @@ export interface Lender {
     name: string;
     description?: string;
     created_at: string;
+    ingestion_status?: 'pending' | 'processing' | 'completed' | 'failed';
+    ingestion_error?: string;
 }
 
 // Loan Application Types

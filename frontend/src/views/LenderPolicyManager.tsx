@@ -3,6 +3,12 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import {
+    Box, Grid, Flex, Heading, Text, Button, Input,
+    VStack, HStack, Badge, Card, Spinner, Alert,
+    Container
+} from '@chakra-ui/react';
+import { FaPlus, FaUpload, FaEdit, FaFilePdf, FaRobot } from 'react-icons/fa';
 import api from '../services/api';
 import { PolicyRuleEditor } from '../components/PolicyRuleEditor';
 import { RuleBuilder } from '../components/RuleBuilder';
@@ -17,15 +23,15 @@ export const LenderPolicyManager: React.FC = () => {
     const [newLenderName, setNewLenderName] = useState('');
     const [newLenderDesc, setNewLenderDesc] = useState('');
     const [uploading, setUploading] = useState(false);
-    const [uploadStatus, setUploadStatus] = useState<string>('');
-    const [error, setError] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Notification state
+    const [notification, setNotification] = useState<{ title: string, status: 'success' | 'error' | 'info' } | null>(null);
 
     // Editing state
     const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
     const [editedRules, setEditedRules] = useState<PolicyRule[]>([]);
     const [saving, setSaving] = useState(false);
-    const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     // Parameter manager visibility
     const [showParamManager, setShowParamManager] = useState(false);
@@ -41,12 +47,54 @@ export const LenderPolicyManager: React.FC = () => {
         }
     }, [selectedLender]);
 
+    // Clear notification after 5s
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
+
+    // Polling for ingestion status
+    useEffect(() => {
+        let interval: any;
+        if (selectedLender?.ingestion_status === 'processing') {
+            interval = setInterval(async () => {
+                try {
+                    const updatedLender = await api.lenders.getById(selectedLender.id);
+
+                    // Update lenders list
+                    setLenders(prev => prev.map(l => l.id === updatedLender.id ? updatedLender : l));
+
+                    if (selectedLender.id === updatedLender.id) {
+                        // Only update selected if it's the same lender
+
+                        if (updatedLender.ingestion_status !== selectedLender.ingestion_status) {
+                            setSelectedLender(updatedLender);
+
+                            if (updatedLender.ingestion_status === 'completed') {
+                                loadPolicies(updatedLender.id);
+                                setNotification({ title: "Processing Complete: Rules extracted.", status: 'success' });
+                            } else if (updatedLender.ingestion_status === 'failed') {
+                                setNotification({ title: `Processing Failed: ${updatedLender.ingestion_error}`, status: 'error' });
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Polling error", e);
+                }
+            }, 3000);
+        }
+        return () => clearInterval(interval);
+    }, [selectedLender]);
+
     const loadLenders = async () => {
         try {
             const data = await api.lenders.getAll();
             setLenders(data);
         } catch (err) {
             console.error('Failed to load lenders:', err);
+            setNotification({ title: 'Failed to load lenders', status: 'error' });
         }
     };
 
@@ -81,8 +129,9 @@ export const LenderPolicyManager: React.FC = () => {
             setNewLenderName('');
             setNewLenderDesc('');
             setSelectedLender(lender);
+            setNotification({ title: 'Lender created', status: 'success' });
         } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to create lender');
+            setNotification({ title: err.response?.data?.detail || 'Error creating lender', status: 'error' });
         }
     };
 
@@ -91,26 +140,24 @@ export const LenderPolicyManager: React.FC = () => {
         if (!file || !selectedLender) return;
 
         if (!file.name.endsWith('.pdf')) {
-            setError('Only PDF files are supported');
+            setNotification({ title: 'Only PDF files are supported', status: 'error' });
             return;
         }
 
         setUploading(true);
-        setUploadStatus('Uploading PDF...');
-        setError('');
 
         try {
-            const result = await api.lenders.uploadPDF(selectedLender.id, file);
-            setUploadStatus(`✓ ${result.message}`);
+            await api.lenders.uploadPDF(selectedLender.id, file);
+            setNotification({ title: 'Upload successful. Processing...', status: 'info' });
 
-            // Refresh policies after a delay
-            setTimeout(() => {
-                loadPolicies(selectedLender.id);
-                setUploadStatus('');
-            }, 5000);
+            // Immediately fetch updated status
+            const updated = await api.lenders.getById(selectedLender.id);
+            setSelectedLender(updated);
+            setLenders(prev => prev.map(l => l.id === updated.id ? updated : l));
+
         } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to upload PDF');
-            setUploadStatus('');
+            console.error(err);
+            setNotification({ title: err.response?.data?.detail || 'Failed to upload PDF', status: 'error' });
         } finally {
             setUploading(false);
             if (fileInputRef.current) {
@@ -123,13 +170,11 @@ export const LenderPolicyManager: React.FC = () => {
     const startEditing = (policy: LenderPolicy) => {
         setEditingPolicyId(policy.id);
         setEditedRules([...policy.rules]);
-        setSaveStatus(null);
     };
 
     const cancelEditing = () => {
         setEditingPolicyId(null);
         setEditedRules([]);
-        setSaveStatus(null);
     };
 
     const handleRuleChange = (updatedRule: PolicyRule) => {
@@ -156,228 +201,290 @@ export const LenderPolicyManager: React.FC = () => {
         if (!editingPolicyId) return;
 
         setSaving(true);
-        setSaveStatus(null);
-
         try {
             // Map rules to the format expected by the API (without id and policy_id)
             const rulesToSave = editedRules.map(({ id, policy_id, ...rule }) => rule);
             await api.policies.updateRules(editingPolicyId, rulesToSave);
 
-            setSaveStatus({ type: 'success', message: 'Rules saved successfully!' });
+            setNotification({ title: 'Rules saved successfully', status: 'success' });
 
             // Refresh policies
             if (selectedLender) {
                 await loadPolicies(selectedLender.id);
             }
 
-            // Exit edit mode after a delay
-            setTimeout(() => {
-                setEditingPolicyId(null);
-                setEditedRules([]);
-                setSaveStatus(null);
-            }, 1500);
+            setEditingPolicyId(null);
+            setEditedRules([]);
         } catch (err: any) {
-            setSaveStatus({
-                type: 'error',
-                message: err.response?.data?.detail || 'Failed to save rules'
-            });
+            setNotification({ title: err.response?.data?.detail || 'Failed to save rules', status: 'error' });
         } finally {
             setSaving(false);
         }
     };
 
     return (
-        <div className="container-fluid">
-            <h1>Lender Policy Manager</h1>
-            <p className="subtitle">Upload lender guidelines PDFs and manage extracted rules</p>
+        <Container maxW="full" p={5}>
+            {notification && (
+                <Box mb={4} p={3} borderRadius="md" bg={
+                    notification.status === 'success' ? 'green.100' :
+                        notification.status === 'error' ? 'red.100' : 'blue.100'
+                } color={
+                    notification.status === 'success' ? 'green.800' :
+                        notification.status === 'error' ? 'red.800' : 'blue.800'
+                }>
+                    <Text fontWeight="bold">{notification.title}</Text>
+                </Box>
+            )}
 
-            {/* Parameter Manager Toggle */}
-            <div className="manager-toggle-section">
-                <button
-                    className={`button small ${showParamManager ? 'secondary' : ''}`}
+            <Flex justify="space-between" align="center" mb={6}>
+                <Box>
+                    <Heading size="lg" mb={2}>Lender Policy Manager</Heading>
+                    <Text color="gray.600">Upload lender guidelines PDFs and manage extracted rules</Text>
+                </Box>
+                <Button
                     onClick={() => setShowParamManager(!showParamManager)}
+                    colorPalette={showParamManager ? "gray" : "blue"}
+                    variant={showParamManager ? "outline" : "solid"}
                 >
-                    {showParamManager ? '✕ Close Parameters' : '📊 Manage Parameters'}
-                </button>
-            </div>
+                    {showParamManager ? 'Hide Parameters' : 'Manage Parameters'}
+                </Button>
+            </Flex>
 
             {/* Parameter Manager */}
             {showParamManager && (
-                <ParameterManager onClose={() => setShowParamManager(false)} />
+                <Box mb={6} borderWidth="1px" borderRadius="lg" overflow="hidden">
+                    <ParameterManager onClose={() => setShowParamManager(false)} />
+                </Box>
             )}
 
-            <div className="admin-layout">
+            <Grid templateColumns={{ base: "1fr", lg: "350px 1fr" }} gap={6} alignItems="start">
                 {/* Lender List */}
-                <div className="lenders-panel">
-                    <h3>Lenders</h3>
+                <VStack gap={4} align="stretch" as={Box} h="full">
+                    <Card.Root variant="outline">
+                        <Card.Header pb={2}>
+                            <Heading size="md">Lenders</Heading>
+                        </Card.Header>
+                        <Card.Body>
+                            <form onSubmit={handleCreateLender}>
+                                <VStack gap={3}>
+                                    <Input
+                                        placeholder="Lender name"
+                                        value={newLenderName}
+                                        onChange={(e) => setNewLenderName(e.target.value)}
+                                    />
+                                    <Input
+                                        placeholder="Description (optional)"
+                                        value={newLenderDesc}
+                                        onChange={(e) => setNewLenderDesc(e.target.value)}
+                                    />
+                                    <Button type="submit" width="full" size="sm">
+                                        <FaPlus /> Add Lender
+                                    </Button>
+                                </VStack>
+                            </form>
+                        </Card.Body>
+                    </Card.Root>
 
-                    <form onSubmit={handleCreateLender} className="create-lender-form">
-                        <input
-                            type="text"
-                            placeholder="Lender name"
-                            value={newLenderName}
-                            onChange={(e) => setNewLenderName(e.target.value)}
-                            className="form-input"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Description (optional)"
-                            value={newLenderDesc}
-                            onChange={(e) => setNewLenderDesc(e.target.value)}
-                            className="form-input"
-                        />
-                        <button type="submit" className="button small">
-                            + Add Lender
-                        </button>
-                    </form>
-
-                    <div className="lenders-list">
-                        {lenders.map((lender) => (
-                            <div
-                                key={lender.id}
-                                className={`lender-item ${selectedLender?.id === lender.id ? 'selected' : ''}`}
-                                onClick={() => setSelectedLender(lender)}
-                            >
-                                <strong>{lender.name}</strong>
-                                {lender.description && <p>{lender.description}</p>}
-                            </div>
-                        ))}
-                        {lenders.length === 0 && (
-                            <p className="empty-state">No lenders yet. Create one above.</p>
-                        )}
-                    </div>
-                </div>
+                    <Card.Root variant="outline" flex="1" overflow="hidden">
+                        <Card.Body p={0} overflowY="auto" maxH="calc(100vh - 300px)">
+                            <VStack gap={0} align="stretch">
+                                {lenders.map((lender) => (
+                                    <Box
+                                        key={lender.id}
+                                        p={4}
+                                        cursor="pointer"
+                                        bg={selectedLender?.id === lender.id ? 'colorPalette.subtle' : 'transparent'}
+                                        _hover={{ bg: selectedLender?.id === lender.id ? 'colorPalette.subtle' : 'bg.subtle' }}
+                                        borderLeftWidth={selectedLender?.id === lender.id ? "4px" : "0"}
+                                        borderColor="colorPalette.solid"
+                                        onClick={() => setSelectedLender(lender)}
+                                        transition="all 0.2s"
+                                        borderBottomWidth="1px"
+                                        borderBottomColor="border.muted"
+                                    >
+                                        <Flex justify="space-between" align="start">
+                                            <Box>
+                                                <Text fontWeight="bold">{lender.name}</Text>
+                                                {lender.description && <Text fontSize="xs" color="fg.muted" lineClamp={1}>{lender.description}</Text>}
+                                            </Box>
+                                            {lender.ingestion_status === 'processing' && (
+                                                <Spinner size="xs" color="colorPalette.solid" />
+                                            )}
+                                        </Flex>
+                                    </Box>
+                                ))}
+                                {lenders.length === 0 && (
+                                    <Text p={4} color="fg.muted" textAlign="center">No lenders yet.</Text>
+                                )}
+                            </VStack>
+                        </Card.Body>
+                    </Card.Root>
+                </VStack>
 
                 {/* Policy Manager */}
-                <div className="policies-panel">
+                <Box>
                     {selectedLender ? (
-                        <>
-                            <h3>{selectedLender.name} - Policies</h3>
+                        <VStack gap={6} align="stretch">
+                            <Card.Root>
+                                <Card.Header pb={0}>
+                                    <Flex justify="space-between" align="center">
+                                        <Heading size="md">{selectedLender.name}</Heading>
+                                        <Badge colorPalette={
+                                            selectedLender.ingestion_status === 'completed' ? 'green' :
+                                                selectedLender.ingestion_status === 'processing' ? 'blue' :
+                                                    selectedLender.ingestion_status === 'failed' ? 'red' : 'gray'
+                                        }>
+                                            Status: {selectedLender.ingestion_status || 'Ready'}
+                                        </Badge>
+                                    </Flex>
+                                </Card.Header>
+                                <Card.Body>
+                                    {/* Upload Section */}
+                                    <Box borderWidth="2px" borderStyle="dashed" borderColor="border.muted" borderRadius="md" p={6} textAlign="center">
+                                        <VStack gap={3}>
+                                            <Box color="colorPalette.solid" fontSize="3xl"><FaFilePdf /></Box>
+                                            <Heading size="sm">Upload Guidelines PDF</Heading>
+                                            <Text fontSize="sm" color="fg.muted">Upload a lender's underwriting guidelines PDF. Our AI will extract the rules automatically.</Text>
 
-                            {/* PDF Upload */}
-                            <div className="upload-section">
-                                <h4>Upload Guidelines PDF</h4>
-                                <p>Upload a lender's underwriting guidelines PDF. Our AI will extract the rules automatically.</p>
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept=".pdf"
+                                                onChange={handleFileUpload}
+                                                style={{ display: 'none' }}
+                                                id="pdf-upload"
+                                            />
+                                            <label
+                                                htmlFor="pdf-upload"
+                                                style={{ display: 'inline-block', cursor: 'pointer' }}
+                                            >
+                                                <Button
+                                                    as="span"
+                                                    pointerEvents="none"
+                                                    loading={uploading}
+                                                    loadingText="Uploading..."
+                                                    colorPalette="blue"
+                                                    disabled={selectedLender.ingestion_status === 'processing'}
+                                                >
+                                                    <FaUpload /> Select PDF to Upload
+                                                </Button>
+                                            </label>
 
-                                <div className="upload-area">
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept=".pdf"
-                                        onChange={handleFileUpload}
-                                        disabled={uploading}
-                                        id="pdf-upload"
-                                    />
-                                    <label htmlFor="pdf-upload" className={`upload-label ${uploading ? 'disabled' : ''}`}>
-                                        {uploading ? '⏳ Processing...' : '📄 Select PDF to Upload'}
-                                    </label>
-                                </div>
+                                            {selectedLender.ingestion_status === 'processing' && (
+                                                <Alert.Root status="info" mt={2} borderRadius="md">
+                                                    <Alert.Indicator />
+                                                    <Box>
+                                                        <Alert.Title>Processing PDF...</Alert.Title>
+                                                        <Alert.Description fontSize="sm">This may take 10-30 seconds. Status will update automatically.</Alert.Description>
+                                                    </Box>
+                                                </Alert.Root>
+                                            )}
 
-                                {uploadStatus && (
-                                    <div className="upload-status success">{uploadStatus}</div>
-                                )}
-                                {error && (
-                                    <div className="upload-status error">{error}</div>
-                                )}
-                            </div>
+                                            {selectedLender.ingestion_status === 'failed' && (
+                                                <Alert.Root status="error" mt={2} borderRadius="md">
+                                                    <Alert.Indicator />
+                                                    <Box>
+                                                        <Alert.Title>Processing Failed</Alert.Title>
+                                                        <Alert.Description fontSize="sm">{selectedLender.ingestion_error}</Alert.Description>
+                                                    </Box>
+                                                </Alert.Root>
+                                            )}
+                                        </VStack>
+                                    </Box>
+                                </Card.Body>
+                            </Card.Root>
 
                             {/* Policies List */}
-                            <div className="policies-list">
-                                <h4>Extracted Policies ({policies.length})</h4>
-                                {policies.map((policy) => (
-                                    <div key={policy.id} className="policy-card">
-                                        <div className="policy-header">
-                                            <strong>{policy.name}</strong>
-                                            <div className="policy-header-actions">
-                                                <span className="rule-count">{policy.rules.length} rules</span>
-                                                {editingPolicyId !== policy.id && (
-                                                    <button
-                                                        className="button small edit-btn"
-                                                        onClick={() => startEditing(policy)}
-                                                    >
-                                                        ✏️ Edit Rules
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
+                            <Box>
+                                <Heading size="md" mb={4}>Extracted Policies ({policies.length})</Heading>
+                                {policies.length === 0 ? (
+                                    <Alert.Root status="info">
+                                        <Alert.Indicator />
+                                        <Alert.Title>No policies found.</Alert.Title>
+                                        <Alert.Description>Upload a PDF to get started.</Alert.Description>
+                                    </Alert.Root>
+                                ) : (
+                                    <VStack gap={4} align="stretch">
+                                        {policies.map((policy) => (
+                                            <Card.Root key={policy.id} variant="outline">
+                                                <Card.Header bg="bg.subtle" py={3}>
+                                                    <Flex justify="space-between" align="center">
+                                                        <Box>
+                                                            <Heading size="sm">{policy.name}</Heading>
+                                                            <Text fontSize="xs" color="fg.muted">{policy.rules.length} rules defined</Text>
+                                                        </Box>
+                                                        {editingPolicyId !== policy.id && (
+                                                            <Button size="sm" onClick={() => startEditing(policy)}>
+                                                                <FaEdit /> Edit Rules
+                                                            </Button>
+                                                        )}
+                                                    </Flex>
+                                                </Card.Header>
+                                                <Card.Body>
+                                                    {editingPolicyId === policy.id ? (
+                                                        // Edit mode
+                                                        <VStack gap={4} align="stretch">
+                                                            <Box>
+                                                                {editedRules.length === 0 ? (
+                                                                    <Text fontStyle="italic" color="fg.muted">No rules. Add one below.</Text>
+                                                                ) : (
+                                                                    editedRules.map((rule) => (
+                                                                        <Box key={rule.id} mb={2}>
+                                                                            <PolicyRuleEditor
+                                                                                rule={rule}
+                                                                                parameters={parameters}
+                                                                                onChange={handleRuleChange}
+                                                                                onDelete={handleRuleDelete}
+                                                                            />
+                                                                        </Box>
+                                                                    ))
+                                                                )}
+                                                            </Box>
 
-                                        {editingPolicyId === policy.id ? (
-                                            // Edit mode
-                                            <div className="policy-edit-mode">
-                                                <div className="rules-editor">
-                                                    {editedRules.length === 0 ? (
-                                                        <p className="empty-state">No rules. Add one below.</p>
+                                                            <Box borderTopWidth="1px" pt={4}>
+                                                                <RuleBuilder
+                                                                    parameters={parameters}
+                                                                    onAdd={handleAddRule}
+                                                                />
+                                                            </Box>
+
+                                                            <HStack justify="flex-end" pt={4} borderTopWidth="1px">
+                                                                <Button variant="ghost" onClick={cancelEditing} disabled={saving}>Cancel</Button>
+                                                                <Button colorPalette="blue" onClick={saveRules} loading={saving}>Save Changes</Button>
+                                                            </HStack>
+                                                        </VStack>
                                                     ) : (
-                                                        editedRules.map((rule) => (
-                                                            <PolicyRuleEditor
-                                                                key={rule.id}
-                                                                rule={rule}
-                                                                parameters={parameters}
-                                                                onChange={handleRuleChange}
-                                                                onDelete={handleRuleDelete}
-                                                            />
-                                                        ))
+                                                        // View Mode usage of rules
+                                                        <VStack align="start" gap={1}>
+                                                            {policy.rules.slice(0, 3).map((rule) => (
+                                                                <HStack key={rule.id} fontSize="sm">
+                                                                    <Badge minW="100px">{rule.parameter_key}</Badge>
+                                                                    <Text fontWeight="bold" color="colorPalette.solid">{rule.operator}</Text>
+                                                                    <Text>{JSON.stringify(rule.value_comparison)}</Text>
+                                                                </HStack>
+                                                            ))}
+                                                            {policy.rules.length > 3 && (
+                                                                <Text fontSize="xs" color="fg.muted" pt={1}>...and {policy.rules.length - 3} more rules</Text>
+                                                            )}
+                                                            {policy.rules.length === 0 && <Text fontSize="sm" color="fg.muted">No rules defined.</Text>}
+                                                        </VStack>
                                                     )}
-                                                </div>
-
-                                                <RuleBuilder
-                                                    parameters={parameters}
-                                                    onAdd={handleAddRule}
-                                                />
-
-                                                {saveStatus && (
-                                                    <div className={`save-status ${saveStatus.type}`}>
-                                                        {saveStatus.message}
-                                                    </div>
-                                                )}
-
-                                                <div className="edit-actions">
-                                                    <button
-                                                        className="button small"
-                                                        onClick={saveRules}
-                                                        disabled={saving}
-                                                    >
-                                                        {saving ? 'Saving...' : '💾 Save Changes'}
-                                                    </button>
-                                                    <button
-                                                        className="button small secondary"
-                                                        onClick={cancelEditing}
-                                                        disabled={saving}
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            // View mode
-                                            <div className="rules-preview">
-                                                {policy.rules.slice(0, 3).map((rule) => (
-                                                    <div key={rule.id} className="rule-item">
-                                                        <span className="rule-param">{rule.parameter_key}</span>
-                                                        <span className="rule-op">{rule.operator}</span>
-                                                        <span className="rule-value">{JSON.stringify(rule.value_comparison)}</span>
-                                                    </div>
-                                                ))}
-                                                {policy.rules.length > 3 && (
-                                                    <p className="more-rules">...and {policy.rules.length - 3} more rules</p>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                                {policies.length === 0 && (
-                                    <p className="empty-state">No policies yet. Upload a PDF to extract rules.</p>
+                                                </Card.Body>
+                                            </Card.Root>
+                                        ))}
+                                    </VStack>
                                 )}
-                            </div>
-                        </>
+                            </Box>
+                        </VStack>
                     ) : (
-                        <div className="select-lender-prompt">
-                            <h3>👈 Select a Lender</h3>
-                            <p>Choose a lender from the list to manage their policies and upload guidelines.</p>
-                        </div>
+                        <Flex direction="column" align="center" justify="center" h="400px" bg="bg.subtle" borderRadius="lg" borderWidth="2px" borderStyle="dashed">
+                            <Box fontSize="4xl" color="fg.subtle" mb={4}><FaRobot /></Box>
+                            <Heading size="md" color="fg.subtle">Select a Lender</Heading>
+                            <Text color="fg.muted">Choose a lender to manage their policies.</Text>
+                        </Flex>
                     )}
-                </div>
-            </div>
-        </div>
+                </Box>
+            </Grid>
+        </Container>
     );
 };
